@@ -323,7 +323,6 @@ function closeSidebar(){
 }
 
 // --- API ---
-const CORS_PROXY = 'https://zona-cors-proxy.ikkihkurogane.workers.dev';
 
 async function fetchList(page){
   const res = await fetch(`${API}/list?page=${page}`);
@@ -331,7 +330,6 @@ async function fetchList(page){
 }
 async function fetchExtract(url){
   if(url.startsWith('http') && url.includes('/extract')){
-    const parsed = new URL(url);
     const res = await fetch(url);
     return res.json();
   }
@@ -465,24 +463,21 @@ async function openMovie(extractUrl, pageUrl){
     document.getElementById('modalGenres').innerHTML = (data.genres||[]).map(g => `<span class="modal-genre">${g}</span>`).join('');
     document.getElementById('modalGallery').innerHTML = (data.gallery||[]).slice(0,8).map(img => `<img src="${bestImage(img)}" loading="lazy">`).join('');
 
-    // Build source list: mp4 first, hls second, embed last
+    // Build source list: mp4 FIRST (CORS OK), hls second, embed fallback
     const streams = data.streams || [];
     const mp4Stream = streams.find(s => s.type === 'mp4');
     const hlsStream = streams.find(s => s.type === 'hls');
 
     // Get embed URL from resolutionTrace as fallback
     let embedUrl = '';
-    let masterPlaylistUrl = '';
     if(data.resolutionTrace && data.resolutionTrace.length > 0){
       const trace = data.resolutionTrace[0];
       embedUrl = trace.embedFinalUrl || trace.embedUrl || '';
-      masterPlaylistUrl = trace.masterPlaylistUrl || '';
     }
 
     const sources = [];
     if(mp4Stream) sources.push({type:'mp4', url:mp4Stream.url});
     if(hlsStream) sources.push({type:'hls', url:hlsStream.url});
-    if(masterPlaylistUrl) sources.push({type:'hls', url:masterPlaylistUrl});
     if(embedUrl) sources.push({type:'embed', url:embedUrl});
 
     if(sources.length > 0){
@@ -507,7 +502,7 @@ function tryPlaySource(sources, index){
     playStream(src.url, src.type, ()=>{
       // on error, try next source
       tryPlaySource(sources, index + 1);
-    });
+    }, index < sources.length - 1 ? sources[index + 1] : null);
   }
 }
 
@@ -519,7 +514,7 @@ function showNoVideo(msg){
 }
 
 // --- PLAYER ---
-function playStream(url, type, onError){
+function playStream(url, type, onError, nextSource){
   const container = document.getElementById('modalPlayer');
   document.getElementById('noVideo').style.display = 'none';
 
@@ -532,6 +527,15 @@ function playStream(url, type, onError){
   video.setAttribute('controls', '');
   container.appendChild(video);
 
+  let loaded = false;
+
+  const fallbackTimer = setTimeout(()=>{
+    if(!loaded && nextSource){
+      destroyPlayer();
+      tryPlaySource([nextSource], 0);
+    }
+  }, 10000);
+
   if(type === 'hls' && Hls.isSupported()){
     const hls = new Hls({
       maxBufferLength: 30,
@@ -541,16 +545,14 @@ function playStream(url, type, onError){
       manifestLoadingTimeOut: 15000,
       manifestLoadingMaxRetry: 3,
       levelLoadingTimeOut: 15000,
-      fragLoadingTimeOut: 30000,
-      fetchSetup: function(url, params){
-        return new Request(url, {...params, mode: 'cors'});
-      }
+      fragLoadingTimeOut: 30000
     });
     hls.loadSource(url);
     hls.attachMedia(video);
-    hls.on(Hls.Events.MANIFEST_PARSED, ()=> video.play().catch(()=>{}));
+    hls.on(Hls.Events.MANIFEST_PARSED, ()=>{ loaded=true; clearTimeout(fallbackTimer); video.play().catch(()=>{}); });
     hls.on(Hls.Events.ERROR, (event, data)=>{
       if(data.fatal){
+        clearTimeout(fallbackTimer);
         hls.destroy();
         if(onError) onError();
       }
@@ -558,17 +560,13 @@ function playStream(url, type, onError){
     window._hls = hls;
   } else if(type === 'hls' && video.canPlayType('application/vnd.apple.mpegurl')){
     video.src = url;
-    video.addEventListener('loadedmetadata', ()=> video.play().catch(()=>{}));
-    video.addEventListener('error', ()=>{
-      if(onError) onError();
-    });
+    video.addEventListener('loadedmetadata', ()=>{ loaded=true; clearTimeout(fallbackTimer); video.play().catch(()=>{}); });
+    video.addEventListener('error', ()=>{ clearTimeout(fallbackTimer); if(onError) onError(); });
   } else if(type === 'mp4'){
     video.src = url;
     video.type = 'video/mp4';
-    video.addEventListener('loadeddata', ()=> video.play().catch(()=>{}));
-    video.addEventListener('error', ()=>{
-      if(onError) onError();
-    });
+    video.addEventListener('loadeddata', ()=>{ loaded=true; clearTimeout(fallbackTimer); video.play().catch(()=>{}); });
+    video.addEventListener('error', ()=>{ clearTimeout(fallbackTimer); if(onError) onError(); });
   }
 
   player = new Plyr(video, {

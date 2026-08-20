@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZonaApp - Peliculas</title>
+<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0f0f0f;--bg-card:#1a1a1a;--bg-sidebar:#212121;--bg-header:#212121;
+  --text:#f1f1f1;--text-secondary:#aaaaaa;--accent:#ff4e45;--accent-hover:#ff6b63;
+  --border:#333;--chip-bg:#333;--chip-active:#f1f1f1;--chip-active-text:#0f0f0f;
+  --sidebar-width:240px;--header-height:56px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Segoe UI',Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
+a{text-decoration:none;color:inherit}
+button{cursor:pointer;border:none;font-family:inherit}
+
+/* HEADER */
+.header{position:fixed;top:0;left:0;right:0;height:var(--header-height);background:var(--bg-header);display:flex;align-items:center;padding:0 16px;z-index:1000;gap:16px}
+.header-left{display:flex;align-items:center;gap:16px;min-width:200px}
+.hamburger{background:none;color:var(--text);font-size:22px;padding:8px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.hamburger:hover{background:rgba(255,255,255,.1)}
+.logo{display:flex;align-items:center;gap:4px;font-size:20px;font-weight:700;letter-spacing:-1px}
+.logo svg{width:32px;height:22px}
+.header-center{flex:1;display:flex;justify-content:center;max-width:640px;margin:0 auto}
+.search-box{display:flex;flex:1;max-width:500px}
+.search-box input{flex:1;height:40px;background:var(--bg);border:1px solid var(--border);border-right:none;border-radius:20px 0 0 20px;padding:0 16px;color:var(--text);font-size:14px;outline:none}
+.search-box input:focus{border-color:#3ea6ff}
+.search-box input::placeholder{color:var(--text-secondary)}
+.search-btn{width:64px;height:40px;background:var(--chip-bg);border:1px solid var(--border);border-radius:0 20px 20px 0;display:flex;align-items:center;justify-content:center;color:var(--text)}
+.search-btn:hover{background:#444}
+.header-right{min-width:100px;display:flex;justify-content:flex-end}
+
+/* SIDEBAR */
+.sidebar{position:fixed;top:var(--header-height);left:0;bottom:0;width:var(--sidebar-width);background:var(--bg-sidebar);overflow-y:auto;z-index:900;transition:transform .25s ease;padding:12px 0}
+.sidebar.hidden{transform:translateX(calc(-1 * var(--sidebar-width)))}
+.sidebar-item{display:flex;align-items:center;gap:24px;padding:10px 24px;font-size:14px;color:var(--text);cursor:pointer;transition:background .15s}
+.sidebar-item:hover{background:rgba(255,255,255,.1)}
+.sidebar-item.active{background:rgba(255,255,255,.15);font-weight:600}
+.sidebar-item svg{width:24px;height:24px;flex-shrink:0;fill:currentColor}
+.sidebar-divider{border-top:1px solid var(--border);margin:12px 0}
+.sidebar-title{padding:8px 24px;font-size:14px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px}
+
+/* MAIN */
+.main{margin-left:var(--sidebar-width);margin-top:var(--header-height);padding:16px 24px;transition:margin-left .25s ease;min-height:calc(100vh - var(--header-height))}
+.main.expanded{margin-left:0}
+
+/* CHIPS */
+.chips{display:flex;gap:8px;padding:8px 0 20px;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{padding:8px 16px;background:var(--chip-bg);color:var(--text);border-radius:8px;font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;transition:all .15s}
+.chip:hover{background:#444}
+.chip.active{background:var(--chip-active);color:var(--chip-active-text)}
+
+/* HERO BANNER */
+.hero{position:relative;width:100%;height:380px;border-radius:16px;overflow:hidden;margin-bottom:32px;background:#000}
+.hero-slide{position:absolute;inset:0;opacity:0;transition:opacity .8s ease}
+.hero-slide.active{opacity:1}
+.hero-slide img{width:100%;height:100%;object-fit:cover}
+.hero-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(15,15,15,1) 0%,rgba(15,15,15,.6) 40%,transparent 70%)}
+.hero-info{position:absolute;bottom:32px;left:32px;right:32px}
+.hero-info h2{font-size:28px;font-weight:700;margin-bottom:8px;text-shadow:0 2px 8px rgba(0,0,0,.8)}
+.hero-info p{font-size:14px;color:var(--text-secondary);max-width:600px;line-height:1.5;margin-bottom:16px}
+.hero-play{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;background:var(--accent);color:#fff;border-radius:24px;font-size:15px;font-weight:600;transition:background .2s}
+.hero-play:hover{background:var(--accent-hover)}
+.hero-dots{position:absolute;bottom:12px;right:32px;display:flex;gap:8px}
+.hero-dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.4);cursor:pointer;transition:background .2s}
+.hero-dot.active{background:#fff}
+
+/* SECTION */
+.section-title{font-size:20px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.section-title svg{width:24px;height:24px;fill:var(--accent)}
+
+/* MOVIE GRID */
+.movie-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px 16px;margin-bottom:40px}
+.movie-card{cursor:pointer;transition:transform .2s}
+.movie-card:hover{transform:translateY(-4px)}
+.movie-thumb{position:relative;border-radius:12px;overflow:hidden;aspect-ratio:16/9;background:#1a1a1a}
+.movie-thumb img{width:100%;height:100%;object-fit:cover;transition:transform .3s}
+.movie-card:hover .movie-thumb img{transform:scale(1.05)}
+.movie-quality{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.8);color:var(--text);padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.movie-lang{position:absolute;top:8px;right:8px;background:var(--accent);color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.movie-play-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.3);opacity:0;transition:opacity .2s}
+.movie-card:hover .movie-play-overlay{opacity:1}
+.movie-play-overlay svg{width:56px;height:56px;fill:rgba(255,255,255,.9);filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
+.movie-info{display:flex;gap:12px;padding:10px 0}
+.movie-avatar{width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;color:#fff}
+.movie-meta{flex:1;min-width:0}
+.movie-meta h3{font-size:14px;font-weight:500;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:4px}
+.movie-meta p{font-size:12px;color:var(--text-secondary)}
+.movie-rating{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--text-secondary)}
+.movie-rating svg{width:14px;height:14px;fill:var(--text-secondary)}
+
+/* PAGINATION */
+.pagination{display:flex;justify-content:center;align-items:center;gap:8px;padding:32px 0}
+.page-btn{padding:10px 20px;background:var(--chip-bg);color:var(--text);border-radius:8px;font-size:14px;font-weight:500;transition:all .2s}
+.page-btn:hover{background:#444}
+.page-btn:disabled{opacity:.3;cursor:not-allowed}
+.page-btn.active{background:var(--accent);color:#fff}
+.page-info{color:var(--text-secondary);font-size:14px;padding:0 12px}
+
+/* MODAL PLAYER */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-overlay.show{display:flex}
+.modal{width:90%;max-width:1100px;background:var(--bg);border-radius:16px;overflow:hidden;max-height:90vh;display:flex;flex-direction:column}
+.modal-player{width:100%;aspect-ratio:16/9;background:#000;position:relative;overflow:hidden}
+.modal-player video{width:100%;height:100%}
+.modal-player iframe{width:100%;height:100%;border:none;position:absolute;top:0;left:0}
+.modal-player .plyr{--plyr-color-main:var(--accent);height:100%}
+.modal-body{padding:20px 24px;overflow-y:auto;flex:1}
+.modal-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:12px}
+.modal-header h2{font-size:22px;font-weight:600;line-height:1.3}
+.modal-close{background:rgba(255,255,255,.1);color:var(--text);width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;transition:background .2s}
+.modal-close:hover{background:rgba(255,255,255,.2)}
+.modal-rating{display:flex;align-items:center;gap:12px;margin-bottom:12px;font-size:14px;color:var(--text-secondary)}
+.modal-rating .stars{color:#ffd700;font-size:16px}
+.modal-genres{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.modal-genre{padding:4px 12px;background:var(--chip-bg);border-radius:20px;font-size:12px;color:var(--text-secondary)}
+.modal-desc{font-size:14px;line-height:1.7;color:var(--text-secondary);margin-bottom:20px}
+.modal-gallery{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px}
+.modal-gallery img{height:180px;border-radius:8px;object-fit:cover;flex-shrink:0}
+.modal-no-video{display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-secondary);font-size:16px;flex-direction:column;gap:12px}
+.modal-no-video svg{width:48px;height:48px;fill:var(--text-secondary)}
+
+/* LOADING */
+.loading{display:flex;justify-content:center;padding:60px 0}
+.spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#444;border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:#555}
+
+/* RESPONSIVE */
+@media(max-width:1024px){
+  .movie-grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+}
+@media(max-width:768px){
+  .sidebar{transform:translateX(calc(-1 * var(--sidebar-width)))}
+  .sidebar.visible{transform:translateX(0)}
+  .main{margin-left:0 !important;padding:12px 12px}
+  .movie-grid{grid-template-columns:1fr}
+  .hero{height:260px;border-radius:0;margin:0 -12px 24px;width:calc(100% + 24px)}
+  .hero-info{left:16px;right:16px;bottom:20px}
+  .hero-info h2{font-size:20px}
+  .header-center{max-width:none}
+  .modal{width:100%;height:100%;max-height:100vh;border-radius:0}
+  .modal-body{padding:16px}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-left">
+    <button class="hamburger" id="menuBtn" title="Menu">
+      <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+    </button>
+    <a href="#" class="logo" onclick="goHome()">
+      <svg viewBox="0 0 90 20" width="90" height="22">
+        <rect width="28" height="20" rx="4" fill="#ff4e45"/>
+        <text x="6" y="15" fill="#fff" font-size="13" font-weight="700" font-family="Arial">Z</text>
+        <text x="32" y="16" fill="#f1f1f1" font-size="16" font-weight="700" font-family="Arial">ZonaApp</text>
+      </svg>
+    </a>
+  </div>
+  <div class="header-center">
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Buscar peliculas..." autocomplete="off">
+      <button class="search-btn" onclick="doSearch()">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="header-right"></div>
+</header>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-item active" onclick="goHome()">
+    <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+    <span>Inicio</span>
+  </div>
+  <div class="sidebar-item" onclick="filterByGenre('Accion')">
+    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+    <span>Accion</span>
+  </div>
+  <div class="sidebar-item" onclick="filterByGenre('Comedia')">
+    <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
+    <span>Comedia</span>
+  </div>
+  <div class="sidebar-item" onclick="filterByGenre('Drama')">
+    <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+    <span>Drama</span>
+  </div>
+  <div class="sidebar-item" onclick="filterByGenre('Terror')">
+    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-6h2c0 1.66 1.34 3 3 3s3-1.34 3-3h2c0 2.76-2.24 5-5 5s-5-2.24-5-5zm9-2H8V8h8v2z"/></svg>
+    <span>Terror</span>
+  </div>
+  <div class="sidebar-item" onclick="filterByGenre('Ciencia ficcion')">
+    <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
+    <span>Ciencia Ficcion</span>
+  </div>
+  <div class="sidebar-item" onclick="filterByGenre('Animacion')">
+    <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12zm-5-7l-7 4V6l7 4z"/></svg>
+    <span>Animacion</span>
+  </div>
+  <div class="sidebar-item" onclick="filterByGenre('Romance')">
+    <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+    <span>Romance</span>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-title">Calidad</div>
+  <div class="sidebar-item" onclick="filterByQuality('1080p')">
+    <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/><text x="6" y="14" font-size="7" font-weight="700" fill="currentColor">HD</text></svg>
+    <span>1080p Full HD</span>
+  </div>
+  <div class="sidebar-item" onclick="filterByQuality('720p')">
+    <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
+    <span>720p HD</span>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-item" onclick="loadPage(1); closeSidebar()">
+    <svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+    <span>Todas las peliculas</span>
+  </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<main class="main" id="main">
+  <!-- HERO BANNER -->
+  <div class="hero" id="hero"></div>
+
+  <!-- CHIPS -->
+  <div class="chips" id="chips">
+    <button class="chip active" onclick="goHome()">Todo</button>
+    <button class="chip" onclick="filterByGenre('Accion')">Accion</button>
+    <button class="chip" onclick="filterByGenre('Comedia')">Comedia</button>
+    <button class="chip" onclick="filterByGenre('Drama')">Drama</button>
+    <button class="chip" onclick="filterByGenre('Terror')">Terror</button>
+    <button class="chip" onclick="filterByGenre('Ciencia ficcion')">Ciencia Ficcion</button>
+    <button class="chip" onclick="filterByGenre('Animacion')">Animacion</button>
+    <button class="chip" onclick="filterByGenre('Romance')">Romance</button>
+    <button class="chip" onclick="filterByGenre('Aventura')">Aventura</button>
+    <button class="chip" onclick="filterByGenre('Thriller')">Thriller</button>
+  </div>
+
+  <!-- CONTENT -->
+  <div id="content">
+    <div class="section-title" id="sectionTitle">
+      <svg viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg>
+      <span id="sectionTitleText">Destacadas</span>
+    </div>
+    <div class="movie-grid" id="movieGrid"></div>
+    <div class="loading" id="loading"><div class="spinner"></div></div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+</main>
+
+<!-- MODAL PLAYER -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-player" id="modalPlayer">
+      <div class="modal-no-video" id="noVideo">
+        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <span>Cargando video...</span>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="modal-header">
+        <h2 id="modalTitle"></h2>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-rating">
+        <span class="stars" id="modalStars"></span>
+        <span id="modalRating"></span>
+        <span>|</span>
+        <span id="modalYear"></span>
+      </div>
+      <div class="modal-genres" id="modalGenres"></div>
+      <p class="modal-desc" id="modalDesc"></p>
+      <div class="modal-gallery" id="modalGallery"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7"></script>
+<script>
+const API = 'https://zonaapp.ikkihkurogane.workers.dev';
+let currentPage = 1, totalPages = 1, allMovies = [], featuredMovies = [];
+let player = null, heroInterval = null, heroIndex = 0;
+let searchMode = false, searchQuery = '';
+
+// --- INIT ---
+document.addEventListener('DOMContentLoaded', () => {
+  loadPage(1);
+  document.getElementById('searchInput').addEventListener('keydown', e => { if(e.key==='Enter') doSearch(); });
+  document.getElementById('menuBtn').addEventListener('click', toggleSidebar);
+  document.getElementById('modal').addEventListener('click', e => { if(e.target===e.currentTarget) closeModal(); });
+  document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
+});
+
+// --- SIDEBAR ---
+function toggleSidebar(){
+  const sb = document.getElementById('sidebar');
+  const m = document.getElementById('main');
+  if(window.innerWidth <= 768){
+    sb.classList.toggle('visible');
+  } else {
+    sb.classList.toggle('hidden');
+    m.classList.toggle('expanded');
+  }
+}
+function closeSidebar(){
+  if(window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('visible');
+}
+
+// --- API ---
+const CORS_PROXY = 'https://zona-cors-proxy.ikkihkurogane.workers.dev';
+
+async function fetchList(page){
+  const res = await fetch(`${API}/list?page=${page}`);
+  return res.json();
+}
+async function fetchExtract(url){
+  if(url.startsWith('http') && url.includes('/extract')){
+    const parsed = new URL(url);
+    const res = await fetch(url);
+    return res.json();
+  }
+  const res = await fetch(`${API}/extract?url=${encodeURIComponent(url)}`);
+  return res.json();
+}
+
+// --- LOAD PAGE ---
+async function loadPage(page){
+  currentPage = page;
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('movieGrid').innerHTML = '';
+  document.getElementById('pagination').innerHTML = '';
+  window.scrollTo({top:0,behavior:'smooth'});
+
+  try {
+    const data = await fetchList(page);
+    totalPages = data.totalPages;
+    featuredMovies = data.featured || [];
+    allMovies = data.movies || [];
+
+    renderHero();
+    renderMovies(allMovies);
+    renderPagination();
+    updateChips('active', 'Todo');
+  } catch(err){
+    document.getElementById('movieGrid').innerHTML = '<p style="text-align:center;color:#aaa;padding:40px">Error al cargar peliculas. Intenta de nuevo.</p>';
+  }
+  document.getElementById('loading').style.display = 'none';
+}
+
+// --- HERO ---
+function renderHero(){
+  const hero = document.getElementById('hero');
+  if(!featuredMovies.length){ hero.style.display='none'; return; }
+  hero.style.display = 'block';
+  const items = featuredMovies.slice(0, 6);
+  hero.innerHTML = items.map((m,i) => `
+    <div class="hero-slide ${i===0?'active':''}" data-idx="${i}">
+      <img src="${bestImage(m.image)}" alt="${decodeHtml(m.title)}" loading="lazy">
+      <div class="hero-overlay"></div>
+      <div class="hero-info">
+        <h2>${decodeHtml(m.title)}</h2>
+        <p>Rating: ${m.rating} | ${m.year}</p>
+        <button class="hero-play" onclick="openMovie('${m.extractUrl}','${m.url}')">
+          <svg viewBox="0 0 24 24" width="20" height="20"><path fill="#fff" d="M8 5v14l11-7z"/></svg>
+          Ver ahora
+        </button>
+      </div>
+    </div>
+  `).join('') + `<div class="hero-dots">${items.map((_,i)=>`<div class="hero-dot ${i===0?'active':''}" onclick="goToHeroSlide(${i})"></div>`).join('')}</div>`;
+
+  clearInterval(heroInterval);
+  heroInterval = setInterval(()=>{
+    heroIndex = (heroIndex + 1) % items.length;
+    goToHeroSlide(heroIndex);
+  }, 5000);
+}
+function goToHeroSlide(idx){
+  heroIndex = idx;
+  document.querySelectorAll('.hero-slide').forEach((s,i)=>s.classList.toggle('active',i===idx));
+  document.querySelectorAll('.hero-dot').forEach((d,i)=>d.classList.toggle('active',i===idx));
+}
+
+// --- RENDER MOVIES ---
+function renderMovies(movies){
+  const grid = document.getElementById('movieGrid');
+  if(!movies.length){
+    grid.innerHTML = '<p style="text-align:center;color:#aaa;padding:40px;grid-column:1/-1">No se encontraron peliculas.</p>';
+    return;
+  }
+  grid.innerHTML = movies.map(m => {
+    const title = decodeHtml(m.title);
+    const initial = title.charAt(0).toUpperCase();
+    const lang = m.languages ? m.languages.join(' / ') : '';
+    const quality = m.quality || '';
+    return `
+    <div class="movie-card" onclick="openMovie('${m.extractUrl}','${m.url}')">
+      <div class="movie-thumb">
+        <img src="${bestImage(m.image)}" alt="${title}" loading="lazy">
+        ${quality ? `<span class="movie-quality">${quality}</span>` : ''}
+        ${lang ? `<span class="movie-lang">${lang}</span>` : ''}
+        <div class="movie-play-overlay">
+          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </div>
+      </div>
+      <div class="movie-info">
+        <div class="movie-avatar">${initial}</div>
+        <div class="movie-meta">
+          <h3>${title}</h3>
+          <p class="movie-rating">
+            <svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+            ${m.rating || 'N/A'} | ${m.year || ''}
+          </p>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// --- OPEN MOVIE ---
+async function openMovie(extractUrl, pageUrl){
+  const modal = document.getElementById('modal');
+  modal.classList.add('show');
+  document.body.style.overflow = 'hidden';
+
+  document.getElementById('modalTitle').textContent = 'Cargando...';
+  document.getElementById('modalDesc').textContent = '';
+  document.getElementById('modalGenres').innerHTML = '';
+  document.getElementById('modalGallery').innerHTML = '';
+  document.getElementById('modalRating').textContent = '';
+  document.getElementById('modalStars').textContent = '';
+  document.getElementById('modalYear').textContent = '';
+  document.getElementById('noVideo').style.display = 'flex';
+  document.getElementById('noVideo').innerHTML = '<div class="spinner"></div><span>Cargando pelicula...</span>';
+
+  destroyPlayer();
+
+  try {
+    const data = await fetchExtract(extractUrl);
+
+    document.getElementById('modalTitle').textContent = decodeHtml(data.title || '');
+    document.getElementById('modalDesc').textContent = data.description || 'Sin descripcion disponible.';
+    document.getElementById('modalYear').textContent = data.rating || '';
+
+    const rating = parseFloat(data.rating) || 0;
+    const stars = Math.round(rating / 2);
+    document.getElementById('modalStars').textContent = '\u2605'.repeat(stars) + '\u2606'.repeat(5 - stars);
+    document.getElementById('modalRating').textContent = `${data.rating || 'N/A'} / 10`;
+
+    document.getElementById('modalGenres').innerHTML = (data.genres||[]).map(g => `<span class="modal-genre">${g}</span>`).join('');
+    document.getElementById('modalGallery').innerHTML = (data.gallery||[]).slice(0,8).map(img => `<img src="${bestImage(img)}" loading="lazy">`).join('');
+
+    // Build source list: mp4 first, hls second, embed last
+    const streams = data.streams || [];
+    const mp4Stream = streams.find(s => s.type === 'mp4');
+    const hlsStream = streams.find(s => s.type === 'hls');
+
+    // Get embed URL from resolutionTrace as fallback
+    let embedUrl = '';
+    let masterPlaylistUrl = '';
+    if(data.resolutionTrace && data.resolutionTrace.length > 0){
+      const trace = data.resolutionTrace[0];
+      embedUrl = trace.embedFinalUrl || trace.embedUrl || '';
+      masterPlaylistUrl = trace.masterPlaylistUrl || '';
+    }
+
+    const sources = [];
+    if(mp4Stream) sources.push({type:'mp4', url:mp4Stream.url});
+    if(hlsStream) sources.push({type:'hls', url:hlsStream.url});
+    if(masterPlaylistUrl) sources.push({type:'hls', url:masterPlaylistUrl});
+    if(embedUrl) sources.push({type:'embed', url:embedUrl});
+
+    if(sources.length > 0){
+      tryPlaySource(sources, 0);
+    } else {
+      showNoVideo('No hay stream disponible');
+    }
+  } catch(err){
+    showNoVideo('Error al cargar pelicula');
+  }
+}
+
+function tryPlaySource(sources, index){
+  if(index >= sources.length){
+    showNoVideo('No se pudo reproducir este video');
+    return;
+  }
+  const src = sources[index];
+  if(src.type === 'embed'){
+    playEmbed(src.url);
+  } else {
+    playStream(src.url, src.type, ()=>{
+      // on error, try next source
+      tryPlaySource(sources, index + 1);
+    });
+  }
+}
+
+function showNoVideo(msg){
+  document.getElementById('noVideo').style.display = 'flex';
+  document.getElementById('noVideo').innerHTML = `
+    <svg viewBox="0 0 24 24" width="48" height="48"><path fill="#aaa" d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h12v2H3v10h18V7h-4v2h2v8H3V7h2V5H3v12h18V5h-2V3h2v14z"/></svg>
+    <span>${msg}</span>`;
+}
+
+// --- PLAYER ---
+function playStream(url, type, onError){
+  const container = document.getElementById('modalPlayer');
+  document.getElementById('noVideo').style.display = 'none';
+
+  let existing = container.querySelector('video');
+  if(existing) existing.remove();
+
+  const video = document.createElement('video');
+  video.id = 'plyrVideo';
+  video.setAttribute('playsinline', '');
+  video.setAttribute('controls', '');
+  container.appendChild(video);
+
+  if(type === 'hls' && Hls.isSupported()){
+    const hls = new Hls({
+      maxBufferLength: 30,
+      startFragPrefetch: true,
+      enableWorker: true,
+      lowLatencyMode: false,
+      manifestLoadingTimeOut: 15000,
+      manifestLoadingMaxRetry: 3,
+      levelLoadingTimeOut: 15000,
+      fragLoadingTimeOut: 30000,
+      fetchSetup: function(url, params){
+        return new Request(url, {...params, mode: 'cors'});
+      }
+    });
+    hls.loadSource(url);
+    hls.attachMedia(video);
+    hls.on(Hls.Events.MANIFEST_PARSED, ()=> video.play().catch(()=>{}));
+    hls.on(Hls.Events.ERROR, (event, data)=>{
+      if(data.fatal){
+        hls.destroy();
+        if(onError) onError();
+      }
+    });
+    window._hls = hls;
+  } else if(type === 'hls' && video.canPlayType('application/vnd.apple.mpegurl')){
+    video.src = url;
+    video.addEventListener('loadedmetadata', ()=> video.play().catch(()=>{}));
+    video.addEventListener('error', ()=>{
+      if(onError) onError();
+    });
+  } else if(type === 'mp4'){
+    video.src = url;
+    video.type = 'video/mp4';
+    video.addEventListener('loadeddata', ()=> video.play().catch(()=>{}));
+    video.addEventListener('error', ()=>{
+      if(onError) onError();
+    });
+  }
+
+  player = new Plyr(video, {
+    controls: ['play-large','play','progress','current-time','duration','mute','volume','settings','pip','fullscreen'],
+    settings: ['speed'],
+    speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
+    tooltips: { controls: true, seek: true },
+    keyboard: { focused: true, global: true }
+  });
+}
+
+function playEmbed(url){
+  const container = document.getElementById('modalPlayer');
+  document.getElementById('noVideo').style.display = 'none';
+
+  destroyPlayer();
+
+  const iframe = document.createElement('iframe');
+  iframe.src = url;
+  iframe.setAttribute('frameborder', '0');
+  iframe.setAttribute('allowfullscreen', '');
+  iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture');
+  iframe.style.width = '100%';
+  iframe.style.height = '100%';
+  iframe.style.position = 'absolute';
+  iframe.style.top = '0';
+  iframe.style.left = '0';
+  container.style.position = 'relative';
+  container.appendChild(iframe);
+}
+
+function destroyPlayer(){
+  if(player){ try{player.destroy();}catch(e){} player = null; }
+  if(window._hls){ try{window._hls.destroy();}catch(e){} window._hls = null; }
+  const vid = document.getElementById('plyrVideo');
+  if(vid) vid.remove();
+  const container = document.getElementById('modalPlayer');
+  const iframe = container.querySelector('iframe');
+  if(iframe) iframe.remove();
+}
+
+function closeModal(){
+  document.getElementById('modal').classList.remove('show');
+  document.body.style.overflow = '';
+  destroyPlayer();
+}
+
+// --- SEARCH ---
+async function doSearch(){
+  const q = document.getElementById('searchInput').value.trim();
+  if(!q){ goHome(); return; }
+  searchMode = true;
+  searchQuery = q.toLowerCase();
+  document.getElementById('sectionTitleText').textContent = `Resultados: "${q}"`;
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('movieGrid').innerHTML = '';
+  document.getElementById('pagination').innerHTML = '';
+  document.getElementById('hero').style.display = 'none';
+
+  try {
+    const data = await fetchList(1);
+    let all = [...(data.featured||[]), ...(data.movies||[])];
+    for(let p=2; p<=data.totalPages; p++){
+      const d = await fetchList(p);
+      all = all.concat(d.featured||[], d.movies||[]);
+    }
+    const unique = [...new Map(all.map(m=>[m.url,m])).values()];
+    const filtered = unique.filter(m => decodeHtml(m.title).toLowerCase().includes(searchQuery));
+    renderMovies(filtered);
+    updateChips('active', 'Todo');
+  } catch(err){
+    document.getElementById('movieGrid').innerHTML = '<p style="text-align:center;color:#aaa;padding:40px">Error al buscar.</p>';
+  }
+  document.getElementById('loading').style.display = 'none';
+}
+
+// --- FILTERS ---
+async function filterByGenre(genre){
+  searchMode = true;
+  document.getElementById('sectionTitleText').textContent = genre;
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('movieGrid').innerHTML = '';
+  document.getElementById('pagination').innerHTML = '';
+  document.getElementById('hero').style.display = 'none';
+  updateChips('active', genre);
+  closeSidebar();
+
+  try {
+    let all = [];
+    for(let p=1; p<=16; p++){
+      const d = await fetchList(p);
+      all = all.concat(d.featured||[], d.movies||[]);
+    }
+    const unique = [...new Map(all.map(m=>[m.url,m])).values()];
+    const filtered = unique.filter(m => {
+      const title = decodeHtml(m.title).toLowerCase();
+      return title.includes(genre.toLowerCase());
+    });
+    renderMovies(filtered);
+  } catch(err){
+    document.getElementById('movieGrid').innerHTML = '<p style="text-align:center;color:#aaa;padding:40px">Error al filtrar.</p>';
+  }
+  document.getElementById('loading').style.display = 'none';
+}
+
+async function filterByQuality(qty){
+  searchMode = true;
+  document.getElementById('sectionTitleText').textContent = qty + ' HD';
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('movieGrid').innerHTML = '';
+  document.getElementById('pagination').innerHTML = '';
+  document.getElementById('hero').style.display = 'none';
+  closeSidebar();
+
+  try {
+    let all = [];
+    for(let p=1; p<=16; p++){
+      const d = await fetchList(p);
+      all = all.concat(d.featured||[], d.movies||[]);
+    }
+    const unique = [...new Map(all.map(m=>[m.url,m])).values()];
+    const filtered = unique.filter(m => (m.quality||'').includes(qty));
+    renderMovies(filtered);
+  } catch(err){}
+  document.getElementById('loading').style.display = 'none';
+}
+
+// --- PAGINATION ---
+function renderPagination(){
+  const pag = document.getElementById('pagination');
+  if(searchMode || totalPages <= 1){ pag.innerHTML = ''; return; }
+  let html = `<button class="page-btn" onclick="loadPage(${currentPage-1})" ${currentPage<=1?'disabled':''}>&laquo; Anterior</button>`;
+  const start = Math.max(1, currentPage - 2);
+  const end = Math.min(totalPages, currentPage + 2);
+  if(start > 1) html += `<button class="page-btn" onclick="loadPage(1)">1</button>`;
+  if(start > 2) html += `<span class="page-info">...</span>`;
+  for(let i=start; i<=end; i++){
+    html += `<button class="page-btn ${i===currentPage?'active':''}" onclick="loadPage(${i})">${i}</button>`;
+  }
+  if(end < totalPages - 1) html += `<span class="page-info">...</span>`;
+  if(end < totalPages) html += `<button class="page-btn" onclick="loadPage(${totalPages})">${totalPages}</button>`;
+  html += `<button class="page-btn" onclick="loadPage(${currentPage+1})" ${currentPage>=totalPages?'disabled':''}>Siguiente &raquo;</button>`;
+  pag.innerHTML = html;
+}
+
+// --- NAV ---
+function goHome(){
+  searchMode = false;
+  searchQuery = '';
+  document.getElementById('searchInput').value = '';
+  document.getElementById('sectionTitleText').textContent = 'Destacadas';
+  document.getElementById('hero').style.display = '';
+  loadPage(1);
+}
+
+// --- UTILS ---
+function bestImage(url){
+  if(!url) return '';
+  // zonaaps thumbnails: strip -185x278, -200x300, -300x450 etc
+  let u = url.replace(/-\d{2,4}x\d{2,4}\.(jpg|jpeg|png|webp)/i, '.$1');
+  // TMDB: /w500/ or /w780/ → /original/
+  u = u.replace(/\/w\d+\//g, '/original/');
+  return u;
+}
+function decodeHtml(html){
+  const txt = document.createElement('textarea');
+  txt.innerHTML = html;
+  return txt.value;
+}
+function updateChips(cls, val){
+  document.querySelectorAll('.chip').forEach(c => {
+    c.classList.toggle(cls, c.textContent === val);
+  });
+}
+</script>
+</body>
+</html>
